@@ -26,7 +26,7 @@ public class HCC implements Runnable{
                 int lapseTime = (int) (System.currentTimeMillis() - connection.getLastTimeRecievedMessage());
                 if(lapseTime > healthTimeOut){
                     if(this.status == HCCStatus.ok){
-                        this.connection.escribir("ping","");
+                        this.connection.escribir("","","",TypeFrame.ping);
                         this.status = HCCStatus.waitingAsk;
                     }
                     else{

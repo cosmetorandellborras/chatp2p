@@ -4,67 +4,40 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.util.ArrayList;
 
 public class ClientConnection implements Runnable{
 
-    private String ip;
-    private Integer port;
-    private Connection con;
     private MyTask myTask;
 
     public MyTask getMyTask() {
         return myTask;
     }
 
-    public String getIp() {
-        return ip;
-    }
-
-    public void setIp(String ip) {
-        this.ip = ip;
-    }
-
-    public Integer getPort() {
-        return port;
-    }
-
-    public void setPort(Integer port) {
-        this.port = port;
-    }
-
-    public Connection getCon() {
-        return con;
-    }
-
-    public void setCon(Connection con) {
-        this.con = con;
-    }
-
-    public ClientConnection(Connection con,MyTask myTask){
+    public ClientConnection(MyTask myTask){
         this.myTask = myTask;
-        this.con = con;
     }
 
     @Override
     public void run() {
         while(true){
-            if(!con.isConnectionOK()){
-                try {
-                    //System.out.println("1");
-                    //System.out.println("prueba conexion puerto "+String.valueOf(this.port)+" ip: "+this.ip);
-                    Socket socket = new Socket(this.ip,this.port);
-                    System.out.println("CLIENT CONNECTIO Antes de hacer set socket");
-                    con.setSocket(socket);
-                    //con.escribir("Soy yo");
-                    System.out.println("CLIENT CONNECTIO Despues de hacer set socket,"+con.getSocket().getPort()+" "+con.getSocket().getInetAddress().getHostAddress());
-                    //System.out.println("3");
-                    //JOptionPane.showMessageDialog(null,"Conexio acceptada");
-                } catch (IOException e) {
-                    System.out.println("Error al conectar client connector");
-                    //throw new RuntimeException(e);
-                    }
+            ArrayList<Connection> faultConnections = myTask.getFaultConnections();
+            for(int i =0;i<faultConnections.size();i++){
 
+                if(faultConnections.get(i).getSocket()==null && faultConnections.get(i).getIp()!=null && faultConnections.get(i).getPort()!=null){
+                    try {
+
+                        Socket socket = new Socket(faultConnections.get(i).getIp(),faultConnections.get(i).getPort());
+                        System.out.println("CLIENT CONNECTIO Antes de hacer set socket");
+                        faultConnections.get(i).setSocket(socket);
+
+                        System.out.println("CLIENT CONNECTIO Despues de hacer set socket,"+faultConnections.get(i).getSocket().getPort()+" "+faultConnections.get(i).getSocket().getInetAddress().getHostAddress());
+
+                    } catch (IOException e) {
+                        System.out.println("Error al conectar client connector");
+                    }
                 }
             }
         }
+    }
 }

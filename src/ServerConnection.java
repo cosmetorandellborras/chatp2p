@@ -2,11 +2,11 @@ import javax.swing.*;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
 
 public class ServerConnection implements Runnable {
 
     private Integer port;
-    private Connection con;
     private MyTask myTask;
 
     public MyTask getMyTask() {
@@ -21,49 +21,41 @@ public class ServerConnection implements Runnable {
         this.port = port;
     }
 
-    public ServerConnection(Connection con,MyTask myTask){
+    public ServerConnection(MyTask myTask){
         this.myTask = myTask;
-        this.con = con;
     }
 
     @Override
     public void run() {
-        ServerSocket serverSocket = null;
-        try {
-            if(this.port!=null){
-                serverSocket = new ServerSocket(port);
-            }else{
-                System.err.println("Server con puerto null");
-                return;
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
         while(true){
-            try {
-                if(!con.isConnectionOK() && serverSocket!=null) {
-                    System.out.println("**********"+con.getSocket());
-                    System.out.println("Waiting..."+String.valueOf(port));
-                    Socket socket = serverSocket.accept();
-                    //System.out.println("Conexio acceptada "+socket.getPort()+" "+socket.getInetAddress().getHostAddress());
-                    if(!con.isConnectionOK()){
-                        System.out.println("Conexio acceptada "+socket.getPort()+" "+socket.getInetAddress().getHostAddress());
-                        con.setSocket(socket);
-                        //con.recibir();
-                        //JOptionPane.showMessageDialog(null,"Conexio acceptada "+socket.getPort()+" "+socket.getInetAddress().getHostAddress());
+            ArrayList<Connection> faultConnections = myTask.getFaultConnections();
+
+            for(int i=0;i<faultConnections.size();i++){
+
+                if(faultConnections.get(i).getSocket()==null && faultConnections.get(i).getIp()!=null && faultConnections.get(i).getPort()!=null){
+                    ServerSocket serverSocket = null;
+                    try {
+                        serverSocket = new ServerSocket(faultConnections.get(i).getPort());
+                    } catch (IOException e) {
+                        //throw new RuntimeException(e);
                     }
-                    else{
-                        System.out.println("Conexio rebutjada "+socket.getPort()+" "+socket.getInetAddress().getHostAddress());
-                        socket.close();
+                    try{
+                        if(serverSocket != null){
+                            Socket socket = serverSocket.accept();
+                            if(!faultConnections.get(i).isConnectionOK()){
+                                faultConnections.get(i).setSocket(socket);
+                            }
+                            else{
+                                socket.close();
+                            }
+                        }
+                    }catch (IOException e){
+
                     }
 
                 }
 
-            } catch (IOException e) {
-                System.out.println(String.valueOf(port));
-                throw new RuntimeException(e);
             }
-
         }
     }
 }

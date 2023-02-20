@@ -1,8 +1,10 @@
-public class MyTask {
+import java.util.ArrayList;
+
+public class MyTask implements ComsController{
 
     private ServerConnection serverConnection;
     private ChatViewer viewer;
-    private Connection connection;
+    private ArrayList<Connection> connections;
     private ClientConnection clientConnection;
 
     public ServerConnection getServerConnection() {
@@ -21,12 +23,12 @@ public class MyTask {
         this.viewer = viewer;
     }
 
-    public Connection getConnection() {
-        return connection;
+    public ArrayList<Connection> getConnections() {
+        return connections;
     }
 
-    public void setConnection(Connection connection) {
-        this.connection = connection;
+    public void setConnections(ArrayList<Connection> connections) {
+        this.connections = connections;
     }
 
     public ClientConnection getClientConnection() {
@@ -36,21 +38,62 @@ public class MyTask {
     public void setClientConnection(ClientConnection clientConnection) {
         this.clientConnection = clientConnection;
     }
+    public ArrayList<Connection> getFaultConnections(){
+        ArrayList<Connection> faultConnections = new ArrayList<>();
+        for (int i=0;i<this.connections.size();i++){
+            if(connections.get(i).getSocket()==null && connections.get(i).getIp()!=null && connections.get(i).getPort()!=null){
+                faultConnections.add(connections.get(i));
+            }
+        }
+        return faultConnections;
+    }
+    public void processFrame(Frame frame){
+        this.viewer.getLamina().getCampoChat().append("\n"+frame.getHeader().getNick()+": "+frame.getPayload().getMessage());
+    }
+    public boolean acceptInboundConnection(Connection connection){
+        boolean validConnection = true;
+        for(int i=0;i<connections.size();i++){
+            if(!connections.get(i).isConnectionOK()){
+                if(connections.get(i).getIp()==connection.getIp()){
+                    validConnection = false;
+                }
+            }
+        }
+        return validConnection;
+    }
 
     public MyTask(){
         this.viewer = new ChatViewer(this);
-        this.connection = new Connection(viewer,this);
-        this.serverConnection = new ServerConnection(connection,this);
-        this.clientConnection = new ClientConnection(connection,this);
+        this.serverConnection = new ServerConnection(this);
+        this.clientConnection = new ClientConnection(this);
+
+        this.connections = new ArrayList<>();
+        Connection con1 = new Connection(viewer,this);
+        con1.setIp("127.0.0.1");
+        con1.setPort(1234);
+        this.connections.add(con1);
+        Connection con2 = new Connection(viewer,this);
+        con2.setIp("127.0.0.1");
+        con2.setPort(1234);
+        this.connections.add(con2);
+
+        Thread viewer = new Thread(this.viewer);
+        viewer.start();
+
     }
 
     public void startConnection(){
-        Thread tConecction = new Thread(connection);
-        tConecction.start();
+
         Thread tServer = new Thread(serverConnection);
         tServer.start();
         Thread tClient = new Thread(clientConnection);
         tClient.start();
+
+        for(int i=0;i<connections.size();i++){
+            Thread tConecction = new Thread(connections.get(i));
+            tConecction.start();
+        }
+
     }
 
     public static void main(String[]args){

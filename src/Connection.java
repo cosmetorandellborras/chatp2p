@@ -1,6 +1,7 @@
 import java.awt.*;
 import java.io.*;
 import java.net.Socket;
+import java.util.ArrayList;
 
 public class Connection implements Runnable{
     private String ip;
@@ -70,11 +71,11 @@ public class Connection implements Runnable{
         hcc.start();
 
     }
-    public void escribir(String nick,String texto){
+    public void escribir(String ip,String nick,String texto,TypeFrame type){
         try {
-            Mensaje mensaje = new Mensaje(nick,texto);
-            if(!mensaje.getNick().equals("ping") && !mensaje.getNick().equals("ping2") ){
-                this.viewer.getLamina().getCampoChat().append("\n"+mensaje.getNick()+": "+mensaje.getMensaje());
+            Frame mensaje = new Frame(ip,nick,texto,type);
+            if(mensaje.getHeader().getType() != TypeFrame.ping && mensaje.getHeader().getType() != TypeFrame.ack ){
+                this.viewer.getLamina().getCampoChat().append("\n"+mensaje.getHeader().getNick()+": "+mensaje.getPayload().getMessage());
             }
             out.writeObject(mensaje);
         } catch (IOException e) {
@@ -84,17 +85,27 @@ public class Connection implements Runnable{
     public void recibir(){
         System.out.println("CONECTION ESPERANDO MENSAJE");
         try {
-            Mensaje mensajeRecibido = new Mensaje();
-            mensajeRecibido = (Mensaje) in.readObject();
-            if(mensajeRecibido.getNick().equals("ping")){
+            Frame mensajeRecibido = new Frame();
+            mensajeRecibido = (Frame) in.readObject();
+            if(mensajeRecibido.getHeader().getType()==TypeFrame.ping){
                 this.lastTimeRecievedMessage = (int) System.currentTimeMillis();
-                this.escribir("ping2","");
+                this.escribir("","","",TypeFrame.ack);
 
-            }else if(mensajeRecibido.getNick().equals("ping2")){
+            }else if(mensajeRecibido.getHeader().getType()==TypeFrame.ack){
+                this.lastTimeRecievedMessage = (int) System.currentTimeMillis();
+            }
+            else if(mensajeRecibido.getHeader().getNick().equals(this.viewer.getLamina().getNick().getText())){
                 this.lastTimeRecievedMessage = (int) System.currentTimeMillis();
             }
             else{
-                this.viewer.getLamina().getCampoChat().append("\n"+mensajeRecibido.getNick()+": "+mensajeRecibido.getMensaje());
+                this.myTask.processFrame(mensajeRecibido);
+                ArrayList<Connection> connections = myTask.getConnections();
+                for(int i=0;i< connections.size();i++){
+                    if(connections.get(i).isConnectionOK()){
+                        connections.get(i).escribir(mensajeRecibido.getHeader().getIpSource(),mensajeRecibido.getHeader().getNick(),mensajeRecibido.getPayload().getMessage(),TypeFrame.message);
+                    }
+
+                }
                 this.lastTimeRecievedMessage = (int) System.currentTimeMillis();
             }
         } catch (IOException e) {
@@ -113,9 +124,6 @@ public class Connection implements Runnable{
         this.socket = null;
         //this.healthCareController.setStatus(HCCStatus.ok);
     }
-    public void sendPing(){
-        this.escribir("root","");
-    }
 
     @Override
     public void run() {
@@ -124,10 +132,16 @@ public class Connection implements Runnable{
                     this.recibir();
                     //this.viewer.getLamina().getCampoChat().append(in.readLine());
                     System.out.println("Mensaje recibido");
-                    this.viewer.getLamina().getStatusPanel().setBackground(Color.GREEN);
+                    this.viewer.getLamina().getStatusPanel1().setBackground(Color.GREEN);
+                    ArrayList<Connection> con = myTask.getConnections();
+                    for(int i=0;i<con.size();i++){
+                        if(con.get(i).getSocket()!=null){
+                            System.out.println("Conexion "+String.valueOf(i)+" funcional");
+                        }
+                    }
             }
             else{
-                this.viewer.getLamina().getStatusPanel().setBackground(Color.RED);
+                this.viewer.getLamina().getStatusPanel1().setBackground(Color.RED);
                 //System.out.println("La conexion CONNECTION no es OK");
             }
         }
